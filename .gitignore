@@ -9,3 +9,4 @@ __pycache__/
 CHRONICLE.md
 dist/
 build/
+uv.lock

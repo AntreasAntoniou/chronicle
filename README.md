@@ -8,7 +8,7 @@ canvas for exploring evidence. The capture core and CLI use the Python standard 
 
 ## Install
 
-Python 3.9 or later on macOS or Linux:
+Python 3.10 or later on macOS or Linux (the standalone capture core also runs on 3.9):
 
 ```bash
 pipx install 'git+https://github.com/AntreasAntoniou/chronicle.git'
