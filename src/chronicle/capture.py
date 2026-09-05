@@ -566,18 +566,9 @@ def looks_binary(data: bytes) -> bool:
 # ── content-addressed store ──────────────────────────────────────────────────
 
 def _codec():
-    """zstd where the interpreter has it (Python >= 3.14 stdlib), gzip everywhere else.
-
-    The hash is taken over UNCOMPRESSED bytes, so a blob written with gzip on one machine and
-    one written with zstd on another are the same object with the same name. The codec is
-    only a file extension; the stores merge without conversion.
-    """
-    try:
-        from compression import zstd  # type: ignore
-        return "zst", zstd.compress, zstd.decompress
-    except Exception:
-        import gzip
-        return "gz", gzip.compress, gzip.decompress
+    """Write gzip so every supported Python version can read newly captured content."""
+    import gzip
+    return "gz", gzip.compress, gzip.decompress
 
 
 def cas_dir() -> str:
@@ -594,8 +585,8 @@ def cas_put(data: bytes) -> str:
     ext, compress, _ = _codec()
     shard = os.path.join(cas_dir(), digest[:2])
     final = os.path.join(shard, digest + "." + ext)
-    # Any codec's copy of this content counts as present: hashes are of plain bytes.
-    for cand_ext in ("zst", "gz", "raw"):
+    # A legacy zstd-only object still needs a portable representation when recaptured.
+    for cand_ext in ("gz", "raw"):
         if os.path.exists(os.path.join(shard, digest + "." + cand_ext)):
             return "sha256:" + digest
     _mkdirp(shard)
@@ -625,9 +616,8 @@ def cas_get(digest: str) -> bytes:
     """Read blob bytes by 'sha256:<hex>' (or bare hex). Raises KeyError if absent."""
     hexd = digest.split(":", 1)[-1]
     shard = os.path.join(cas_dir(), hexd[:2])
-    _, _, decompress = _codec()
     import gzip
-    for ext in ("zst", "gz", "raw"):
+    for ext in ("gz", "raw", "zst"):
         path = os.path.join(shard, hexd + "." + ext)
         if not os.path.exists(path):
             continue
@@ -637,7 +627,11 @@ def cas_get(digest: str) -> bytes:
             return raw
         if ext == "gz":
             return gzip.decompress(raw)
-        from compression import zstd  # type: ignore
+        try:
+            from compression import zstd  # type: ignore
+        except ImportError as exc:
+            raise RuntimeError("This legacy zstd blob requires Python 3.14+; "
+                               "use that interpreter or restore a gzip copy") from exc
         return zstd.decompress(raw)
     raise KeyError(digest)
 

@@ -73,6 +73,9 @@ Events live in append-only JSONL lanes under `.chronicle/` or `~/.chronicle/lane
 Captured content lives in `~/.chronicle/cas/`; curated narrative lives in `CHRONICLE.md`.
 Keep all of these private.
 
+New captures use gzip across supported Python versions. Legacy Zstandard-only blobs
+require Python 3.14 or later to read; a gzip copy is preferred when both exist.
+
 `chron sync` stays local by default. Set `CHRONICLE_REMOTES` to a space-separated list of
 SSH hosts for remote pulls. `CHRONICLE_SPINE` or `--spine` selects the destination. Blobs
 are encrypted with `age` on the way to the spine, or skipped when recipients are missing.

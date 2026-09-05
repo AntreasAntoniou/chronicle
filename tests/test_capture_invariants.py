@@ -307,6 +307,7 @@ def test_gzip_and_zstd_blobs_share_a_hash_and_both_read(home, monkeypatch):
     """A blob written on one host (gzip, py3.9) and on another (zstd, py3.14) must be the
     same object. This is what lets the two machines' stores merge by union."""
     import gzip
+    zstd = pytest.importorskip("compression.zstd", reason="legacy zstd decoding requires Python 3.14+")
     data = b"cross-machine content" * 200
     digest = cap.cas_put(data)                       # native codec
     hexd = digest.split(":")[1]
@@ -318,7 +319,6 @@ def test_gzip_and_zstd_blobs_share_a_hash_and_both_read(home, monkeypatch):
     if other_ext == "gz":
         payload = gzip.compress(data)
     else:
-        from compression import zstd
         payload = zstd.compress(data)
     (shard / f"{hexd}.{other_ext}").write_bytes(payload)
 
@@ -326,6 +326,32 @@ def test_gzip_and_zstd_blobs_share_a_hash_and_both_read(home, monkeypatch):
     existing.unlink()                                # only the foreign codec remains
     assert cap.cas_get(digest) == data, "foreign-codec blob was unreadable"
     assert cap.cas_verify(digest)
+
+
+def test_new_captures_use_portable_gzip(home):
+    digest = cap.cas_put(b"portable across supported Python versions")
+    hexd = digest.split(":")[1]
+    assert (home / "cas" / hexd[:2] / (hexd + ".gz")).is_file()
+
+
+def test_unavailable_zstd_does_not_hide_readable_gzip(home, monkeypatch):
+    import builtins
+    import gzip
+    data = b"portable fallback"
+    digest = cap.cas_put(data)
+    hexd = digest.split(":")[1]
+    shard = home / "cas" / hexd[:2]
+    (shard / (hexd + ".gz")).write_bytes(gzip.compress(data))
+    (shard / (hexd + ".zst")).write_bytes(b"unsupported legacy encoding")
+    original_import = builtins.__import__
+
+    def without_compression(name, *args, **kwargs):
+        if name == "compression":
+            raise ImportError("unavailable on this interpreter")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", without_compression)
+    assert cap.cas_get(digest) == data
 
 
 def test_tampered_blob_fails_verification(home):
