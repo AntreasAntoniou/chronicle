@@ -1,0 +1,25 @@
+[project]
+name = "chronicle"
+version = "2.0.0"
+description = "Operational history and intent for agent workflows"
+license = "MIT"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []          # the capture core and CLI are stdlib-only, by design
+
+[project.optional-dependencies]
+canvas = ["fastapi>=0.115", "uvicorn>=0.32"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+chron = "chronicle.cli:main"
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-data]
+"chronicle.canvas" = ["*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

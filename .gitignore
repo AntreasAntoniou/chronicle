@@ -1,0 +1,11 @@
+# The raw trace never enters the repo — it lives in ~/.chronicle and the spine.
+# This is what keeps client-facing and public repos clean while still fully recorded.
+.chronicle/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+.venv/
+CHRONICLE.md
+dist/
+build/
